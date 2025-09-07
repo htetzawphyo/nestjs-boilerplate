@@ -8,17 +8,46 @@ datasource db {
 }
 
 model User {
-  id                Int         @id @default(autoincrement())
-  name              String
-  email             String      @unique
-  password          String
-  role              Role
-  is_suspend        Boolean     @default(false)
-  created_at        DateTime    @default(now())
-  updated_at        DateTime    @updatedAt
+  id            String        @id @default(uuid()) @db.Uuid()
+  name          String        @db.VarChar(255)
+  email         String        @unique @db.VarChar(255)
+  password      String        @db.VarChar(255)
+  accountStatus AccountStatus @map("account_status")
+  isActive      Boolean       @default(true) @map("is_active")
+  roleId        String        @map("role_id") @db.Uuid()
+  role          Role          @relation(fields: [roleId], references: [id])
+  created_at    DateTime      @default(now()) @map("created_at") @db.Timestamp(6)
+  updated_at    DateTime      @updatedAt @map("updated_at") @db.Timestamp(6)
+
+  @@index([name, email])
+  @@map("users")
 }
 
-enum Role {
-  Admin
-  User
+enum AccountStatus {
+  ACTIVE
+  INACTIVE
+  SUSPENDED
+}
+
+model Role {
+  id          String       @id @default(uuid()) @db.Uuid()
+  name        String       @db.VarChar(255)
+  created_at  DateTime     @default(now()) @map("created_at") @db.Timestamp(6)
+  updated_at  DateTime     @updatedAt @map("updated_at") @db.Timestamp(6)
+  users       User[]
+  permissions Permission[]
+
+  @@map("roles")
+}
+
+model Permission {
+  id         String   @id @default(uuid()) @db.Uuid()
+  action     String   @db.VarChar(255)
+  subject    String   @db.VarChar(255)
+  created_at DateTime @default(now()) @map("created_at") @db.Timestamp(6)
+  updated_at DateTime @updatedAt @map("updated_at") @db.Timestamp(6)
+  roleId     String   @map("role_id") @db.Uuid()
+  role       Role     @relation(fields: [roleId], references: [id])
+
+  @@map("permissions")
 }

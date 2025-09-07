@@ -1,78 +1,114 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
-import { JwtService } from '@nestjs/jwt';
-import { PrismaService } from 'src/prisma/prisma.service';
+import { Injectable, Logger, UnauthorizedException } from '@nestjs/common';
+import { UserService } from 'src/user/user.service';
+import { LoginResponseDto } from './dtos/login-response.dto';
 import * as bcrypt from 'bcrypt';
-import { LoginDto } from './dto/login.dto';
-import { log } from 'console';
-import { RegisterDto } from './dto/register.dto';
-import { use } from 'passport';
+import { JwtService } from '@nestjs/jwt';
+import { cookieConstants, jwtConstants } from './constant';
+import { Response } from 'express';
+import { RefreshResponseDto } from './dtos/refresh-response.dto';
+import { LogoutResponseDto } from './dtos/logout-response.dto';
+import { ApiTags } from '@nestjs/swagger';
+import { JwtUser } from './decorator/current.decorator';
 
+@ApiTags('Auth')
 @Injectable()
 export class AuthService {
-    constructor(
-        private prisma: PrismaService,
-        private jwtService: JwtService
-    ) { }
+  constructor(
+    private readonly userService: UserService,
+    private readonly jwtService: JwtService,
+  ) {}
 
-    async validateUser(email: string, password: string) {
-        const user = await this.prisma.user.findUnique({ where: { email } });
-        if (!user) throw new UnauthorizedException('Invalid credentials');
+  async login(
+    email: string,
+    password: string,
+    res: Response,
+  ): Promise<LoginResponseDto> {
+    const user = await this.userService.findUserByEmail(email, true);
 
-        const isValid = await bcrypt.compare(password, user.password);
-        if (!isValid) throw new UnauthorizedException('Invalid credentials');
-
-        return user;
+    const isPasswordValid = await bcrypt.compare(password, user.password);
+    if (!isPasswordValid) {
+      throw new UnauthorizedException('Invalid credentials');
     }
 
-    async login(loginDto: LoginDto) {
-        const user = await this.validateUser(loginDto.email, loginDto.password);
+    const payload = {
+      id: user.id,
+      email: user.email,
+    };
 
-        return this.getTokens(user.id, user.role);
+    const accessToken = await this.jwtService.signAsync(payload, {
+      secret: jwtConstants.accessTokenSecret,
+      expiresIn: jwtConstants.accessTokenExpiresIn,
+    });
+
+    const refreshToken = await this.jwtService.signAsync(payload, {
+      secret: jwtConstants.refreshTokenSecret,
+      expiresIn: jwtConstants.refreshTokenExpiresIn,
+    });
+
+    res.cookie(
+      cookieConstants.accessTokenName,
+      accessToken,
+      cookieConstants.accessTokenOptions,
+    );
+
+    res.cookie(
+      cookieConstants.refreshTokenName,
+      refreshToken,
+      cookieConstants.refreshTokenOptions,
+    );
+
+    return {
+      success: true,
+      message: 'Login successful',
+      User: {
+        id: user.id,
+        email: user.email,
+        name: user.name,
+        role: user.role,
+      },
+    };
+  }
+
+  async refresh(
+    refreshToken: string,
+    res: Response,
+  ): Promise<RefreshResponseDto> {
+    try {
+      const payload = await this.jwtService.verifyAsync<JwtUser>(refreshToken, {
+        secret: jwtConstants.refreshTokenSecret,
+      });
+
+      const newAccessToken = await this.jwtService.signAsync(
+        { id: payload.id, email: payload.email },
+        {
+          secret: jwtConstants.accessTokenSecret,
+          expiresIn: jwtConstants.accessTokenExpiresIn,
+        },
+      );
+
+      res.cookie(
+        cookieConstants.accessTokenName,
+        newAccessToken,
+        cookieConstants.accessTokenOptions,
+      );
+
+      return {
+        success: true,
+        message: 'Token refreshed successfully',
+      };
+    } catch (error: any) {
+      Logger.error('Refresh token validation error:', error);
+      throw new UnauthorizedException('Invalid refresh token');
     }
+  }
 
-    async register(registerDto: RegisterDto) {
-        const hashedPassword = await bcrypt.hash(registerDto.password, 10);
-        const user = await this.prisma.user.create({
-            data: {
-                name: registerDto.name,
-                email: registerDto.email,
-                password: hashedPassword,
-                role: registerDto.role as any || 'User',
-            },
-        });
+  logout(res: Response): LogoutResponseDto {
+    res.clearCookie('access_token');
+    res.clearCookie('refresh_token');
 
-        return this.getTokens(user.id, user.role);
-    }
-
-    async refreshToken(token: string) {
-        try {
-            const payload = await this.jwtService.verifyAsync(token, {
-                secret: process.env.JWT_REFRESH_SECRET || 'rt-secret',
-            });
-
-            return this.getTokens(payload.sub, payload.role);
-        } catch (e) {
-            throw new UnauthorizedException('Invalid refresh token');
-        }
-    }
-
-    async getTokens(userId: number, role: string) {
-        const accessToken = await this.jwtService.signAsync(
-            { sub: userId, role },
-            {
-                secret: process.env.JWT_ACCESS_SECRET || 'at-secret',
-                expiresIn: '15m',
-            },
-        );
-
-        const refreshToken = await this.jwtService.signAsync(
-            { sub: userId, role },
-            {
-                secret: process.env.JWT_REFRESH_SECRET || 'rt-secret',
-                expiresIn: '7d',
-            },
-        );
-
-        return { accessToken, refreshToken };
-    }
+    return {
+      success: true,
+      message: 'Logout successful',
+    };
+  }
 }
