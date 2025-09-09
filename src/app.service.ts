@@ -63,6 +63,10 @@ export class AppService {
         { action: 'update', subject: 'user' },
         { action: 'delete', subject: 'user' },
         { action: 'upload_image', subject: 'user' },
+        { action: 'create', subject: 'role' },
+        { action: 'view', subject: 'role' },
+        { action: 'update', subject: 'role' },
+        { action: 'delete', subject: 'role' },
         //... add more permissions as you needed
       ];
 
