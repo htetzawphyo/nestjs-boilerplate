@@ -1,9 +1,7 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { type AccountStatus, accountStatus } from '../enums/enums';
-import { Exclude, Expose } from 'class-transformer';
-import { RoleDto } from 'src/role/dtos/role.dto';
+import { Expose } from 'class-transformer';
 
-export class UserDto {
+export class PermissionDto {
   @ApiProperty({
     format: 'uuid',
     example: '123e4567-e89b-12d3-a456-426614174000',
@@ -12,42 +10,16 @@ export class UserDto {
   id: string;
 
   @ApiProperty({
-    example: 'John Doe',
+    example: 'create',
   })
   @Expose()
-  name: string;
+  action: string;
 
   @ApiProperty({
-    example: 'john.doe@example.com',
+    example: 'user',
   })
   @Expose()
-  email: string;
-
-  @ApiProperty({
-    example: true,
-  })
-  @Expose()
-  isActive: boolean;
-
-  @ApiProperty({
-    enum: accountStatus,
-    example: accountStatus.ACTIVE,
-  })
-  @Expose()
-  accountStatus: AccountStatus;
-
-  @ApiProperty({
-    format: 'uuid',
-    example: '123e4567-e89b-12d3-a456-426614174000',
-  })
-  @Expose()
-  roleId: string;
-
-  @ApiProperty({
-    type: RoleDto,
-  })
-  @Expose()
-  role: RoleDto;
+  subject: string;
 
   @ApiProperty({
     example: '2021-01-01T00:00:00.000Z',
@@ -61,10 +33,44 @@ export class UserDto {
   @Expose()
   updated_at: Date;
 
-  @Exclude()
-  password: string;
+  @ApiProperty({
+    format: 'uuid',
+    example: '123e4567-e89b-12d3-a456-426614174000',
+  })
+  @Expose()
+  roleId: string;
+}
 
-  constructor(partial: Partial<UserDto>) {
-    Object.assign(this, partial);
-  }
+export class RoleDto {
+  @ApiProperty({
+    format: 'uuid',
+    example: '123e4567-e89b-12d3-a456-426614174000',
+  })
+  @Expose()
+  id: string;
+
+  @ApiProperty({
+    example: 'admin role',
+  })
+  @Expose()
+  name: string;
+
+  @ApiProperty({
+    example: '2021-01-01T00:00:00.000Z',
+  })
+  @Expose()
+  created_at: Date;
+
+  @ApiProperty({
+    example: '2021-01-01T00:00:00.000Z',
+  })
+  @Expose()
+  updated_at: Date;
+
+  @ApiProperty({
+    type: [PermissionDto],
+    description: 'List of permissions associated with this role',
+  })
+  @Expose()
+  permissions: PermissionDto[];
 }
