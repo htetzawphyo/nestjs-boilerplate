@@ -6,6 +6,7 @@ import {
   Param,
   Post,
   Put,
+  Query,
   UseGuards,
 } from '@nestjs/common';
 import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
@@ -17,6 +18,8 @@ import { PermissionsGuard } from 'src/auth/guard/permissions.guard';
 import { Permissions } from 'src/auth/decorator/permissions.decorator';
 import { CreateUserDto } from './dtos/create-user.dto';
 import { UpdateUserDto } from './dtos/update-user.dto';
+import { PaginationQueryDto } from './dtos/paginated-query.dto';
+import { PaginatedUsersResponseDto } from './dtos/paginated-users-response.dto';
 @ApiTags('users')
 @Controller('users')
 export class UserController {
@@ -96,6 +99,38 @@ export class UserController {
       success: true,
       message: 'All users fetched successfully',
       users: result,
+    };
+  }
+
+  @Get('paginated')
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @Permissions({ action: 'view', subject: 'user' })
+  @ApiOperation({ summary: 'Get all users with pagination' })
+  @ApiResponse({
+    status: 200,
+    description: 'Users fetched successfully with pagination',
+    type: PaginatedUsersResponseDto,
+  })
+  async getAllUsersPaginated(
+    @Query() paginationQuery: PaginationQueryDto,
+  ): Promise<PaginatedUsersResponseDto> {
+    const { page = 1, limit = 10, query } = paginationQuery;
+
+    const result = await this.userService.getAllUserwithPaginated(
+      page,
+      limit,
+      query,
+    );
+    return {
+      success: true,
+      message: 'Users fetched successfully',
+      users: result.users,
+      pagination: {
+        total: result.total,
+        page: result.page,
+        limit: result.limit,
+        totalPages: result.totalPages,
+      },
     };
   }
 

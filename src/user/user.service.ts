@@ -69,6 +69,35 @@ export class UserService {
     );
   }
 
+  async getAllUserwithPaginated(
+    page: number = 1,
+    limit: number = 10,
+    query?: string,
+  ): Promise<{
+    users: UserDto[];
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+  }> {
+    const result = await this.userRepository.getAllUserwithPaginated(
+      page,
+      limit,
+      query,
+    );
+
+    const users = result.users.map((user) =>
+      plainToInstance(UserDto, user, {
+        excludeExtraneousValues: true,
+      }),
+    );
+
+    return {
+      ...result,
+      users,
+    };
+  }
+
   async findUserById(
     id: string,
     includePasswordField = false,
