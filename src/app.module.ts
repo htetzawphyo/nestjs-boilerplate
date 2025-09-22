@@ -8,6 +8,7 @@ import { UserModule } from './user/user.module';
 import { LoggerMiddleware } from './common/middlewares/logger.middleware';
 import { RoleModule } from './role/role.module';
 import { RedisModule } from './redis/redis.module';
+import { UploadModule } from './upload/upload.module';
 
 @Module({
   imports: [
@@ -19,6 +20,7 @@ import { RedisModule } from './redis/redis.module';
     UserModule,
     RoleModule,
     RedisModule,
+    UploadModule,
   ],
   controllers: [AppController],
   providers: [AppService],
